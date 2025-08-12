@@ -113,52 +113,14 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
       // Axis-aware live scaling: keep font size constant, adjust only intended axis
       canvas.on("object:scaling", (e) => {
         const obj = e?.target as fabric.Object | undefined;
-        if (obj && obj.type === "textbox") {
-          const tb = obj as unknown as fabric.Textbox;
-          const transform = (e as any)?.transform as any | undefined;
-          const corner = transform?.corner as string | undefined;
-
-          const isVerticalOnly = corner === "mt" || corner === "mb";
-          const isHorizontalOnly = corner === "ml" || corner === "mr";
-
-          // Initialize baseline for this drag
-          const dataAny = (tb.data || {}) as any;
-          if (!dataAny._resizeStart) {
-            dataAny._resizeStart = {
-              width: tb.width || MIN_BOUNDARY,
-              height: getBoundaryHeight(tb),
-            };
-            tb.data = dataAny as any;
-          }
-
-          const startWidth = dataAny._resizeStart.width as number;
-          const startHeight = dataAny._resizeStart.height as number;
-
-          const sX = transform?.scaleX ?? tb.scaleX ?? 1;
-          const sY = transform?.scaleY ?? tb.scaleY ?? 1;
-          const proposedW = Math.max(MIN_BOUNDARY, startWidth * sX);
-          const proposedH = Math.max(MIN_BOUNDARY, startHeight * sY);
-
-          const newW = isVerticalOnly ? startWidth : proposedW;
-          const newH = isHorizontalOnly ? startHeight : proposedH;
-
-          // Live-bake width/height and neutralize scaling so text doesn't scale
-          tb.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
-          // Also neutralize the transform scales to keep handles responsive
-          if (transform) {
-            transform.scaleX = 1;
-            transform.scaleY = 1;
-          }
-          tb.setCoords();
-          canvas.requestRenderAll();
-        } else if (obj && obj.type === "group") {
+        if (obj && obj.type === "group") {
           const group = obj as fabric.Group;
           const scaleX = group.scaleX ?? 1;
           const scaleY = group.scaleY ?? 1;
           const updatedWidth = (group.width ?? 0) * scaleX ;
           const { textbox } = findTextGroupParts(group);
           if(textbox) {
-            textbox.set({ scaleX: 1 / scaleX, scaleY: 1 /scaleY, width: updatedWidth, breakWords: true });
+            textbox.set({ scaleX: 1 / scaleX, scaleY: 1 /scaleY, width: updatedWidth });
             textbox.setCoords();
         }
           obj.setCoords();
@@ -169,43 +131,14 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
       // After resize/rotate finishes, finalize baked dimensions and reset scale
       canvas.on("object:modified", (e) => {
         const obj = e?.target as fabric.Object | undefined;
-        if (obj && obj.type === "textbox") {
-          const tb = obj as unknown as fabric.Textbox;
-          const transform = (e as any)?.transform as any | undefined;
-          const corner = transform?.corner as string | undefined;
-
-          const isVerticalOnly = corner === "mt" || corner === "mb";
-          const isHorizontalOnly = corner === "ml" || corner === "mr";
-
-          const dataAny = (tb.data || {}) as any;
-          const startWidth =
-            dataAny._resizeStart?.width ?? (tb.width || MIN_BOUNDARY);
-          const startHeight =
-            dataAny._resizeStart?.height ?? getBoundaryHeight(tb);
-
-          // Since we baked during scaling, use current baked values
-          const bakedW = tb.width || startWidth;
-          const bakedH = getBoundaryHeight(tb) || startHeight;
-
-          const finalW = isVerticalOnly ? startWidth : bakedW;
-          const finalH = isHorizontalOnly ? startHeight : bakedH;
-
-          tb.set({ width: finalW, height: finalH, scaleX: 1, scaleY: 1 });
-          ensureClipRect(tb, finalW, finalH);
-          // Clear baseline for next interactions
-          if (dataAny._resizeStart) {
-            delete dataAny._resizeStart;
-            tb.data = dataAny;
-          }
-          tb.setCoords();
-        } else if (obj && obj.type === "group") {
+        if (obj && obj.type === "group") {
           const group = obj as fabric.Group;
           const scaleX = group.scaleX ?? 1;
           const scaleY = group.scaleY ?? 1;
           const updatedWidth = (group.width ?? 0) * scaleX ;
           const { textbox } = findTextGroupParts(group);
           if(textbox) {
-            textbox.set({ scaleX: 1 / scaleX, scaleY: 1 /scaleY, width: updatedWidth, breakWords: true });
+            textbox.set({ scaleX: 1 / scaleX, scaleY: 1 /scaleY, width: updatedWidth });
             textbox.setCoords();
             canvas.requestRenderAll();
           }
