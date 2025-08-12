@@ -449,12 +449,14 @@ export default function Home() {
           {/* Center - Canvas */}
           <div className="flex-1 flex flex-col">
             <Canvas
-              ref={canvasRef}
-              state={currentState}
-              onStateChange={handleStateChange}
-              onSelectionChange={setSelectedLayerId}
-              onBackgroundImageError={handleBackgroundImageError}
-            />
+               ref={canvasRef}
+               state={currentState}
+               onStateChange={handleStateChange}
+               onSelectionChange={setSelectedLayerId}
+               onBackgroundImageError={handleBackgroundImageError}
+               onUndo={handleUndo}
+               onRedo={handleRedo}
+             />
           </div>
 
           {/* Right Panel - Properties */}

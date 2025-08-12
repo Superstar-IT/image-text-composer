@@ -24,6 +24,8 @@ interface CanvasProps {
   onStateChange: (state: CanvasState) => void;
   onSelectionChange: (layerId: string | undefined) => void;
   onBackgroundImageError?: (error: string) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export interface CanvasRef {
@@ -68,7 +70,7 @@ const isFormElement = (target: EventTarget | null): boolean => {
 };
 
 const Canvas = forwardRef<CanvasRef, CanvasProps>(
-  ({ state, onStateChange, onSelectionChange, onBackgroundImageError }, ref) => {
+  ({ state, onStateChange, onSelectionChange, onBackgroundImageError, onUndo, onRedo }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const lastBgRef = useRef<string | undefined>(undefined);
@@ -228,6 +230,27 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
         // Ignore when typing in form fields or contenteditable
         if (isFormElement(e.target)) return;
 
+        // Handle global shortcuts (undo/redo) regardless of canvas state
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key.toLowerCase()) {
+            case "z":
+              e.preventDefault();
+              if (e.shiftKey) {
+                // Ctrl+Shift+Z or Cmd+Shift+Z for redo
+                onRedo?.();
+              } else {
+                // Ctrl+Z or Cmd+Z for undo
+                onUndo?.();
+              }
+              return;
+            case "y":
+              e.preventDefault();
+              // Ctrl+Y or Cmd+Y for redo (alternative)
+              onRedo?.();
+              return;
+          }
+        }
+
         if (!fabricCanvasRef.current) return;
 
         const activeObject = fabricCanvasRef.current.getActiveObject();
@@ -275,7 +298,7 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
         const newState = getCanvasState(fabricCanvasRef.current);
         onStateChange(newState);
       },
-      [onStateChange, onSelectionChange]
+      [onStateChange, onSelectionChange, onUndo, onRedo]
     );
 
     useEffect(() => {
