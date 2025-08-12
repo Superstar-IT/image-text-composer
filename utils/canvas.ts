@@ -393,8 +393,8 @@ export const getCanvasState = (canvas: fabric.Canvas): CanvasState => {
   const layers: TextLayer[] = groups.map(group => {
     const { rect, textbox } = findTextGroupParts(group);
     const tb = textbox as fabric.Textbox | undefined;
-    const width = rect?.width ?? tb?.width ?? 0;
-    const height = rect?.height ?? 0;
+    const width = (group.width || 0) * (group.scaleX || 1)
+    const height = (group.height || 0) * (group.scaleY || 1);
     return {
       id: group.data?.id || '',
       text: tb?.text || '',
