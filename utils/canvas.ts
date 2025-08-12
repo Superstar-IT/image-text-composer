@@ -4,6 +4,102 @@ import { normalizeFontFamilyFromCanvas } from './fonts';
 
 const MIN_BOUNDARY = 20;
 
+// Utility function to resize images while maintaining aspect ratio
+export const resizeImage = (
+  imageSrc: string,
+  maxWidth: number = 1920,
+  maxHeight: number = 1080,
+  maxSizeBytes: number = 5 * 1024 * 1024
+): Promise<{ src: string; width: number; height: number; wasResized: boolean }> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const originalWidth = img.width;
+      const originalHeight = img.height;
+      
+      // Check if resizing is needed
+      const needsResize = originalWidth > maxWidth || originalHeight > maxHeight;
+      const isTooLarge = imageSrc.length > maxSizeBytes;
+      
+      if (!needsResize && !isTooLarge) {
+        resolve({
+          src: imageSrc,
+          width: originalWidth,
+          height: originalHeight,
+          wasResized: false
+        });
+        return;
+      }
+      
+      // Calculate new dimensions maintaining aspect ratio
+      const aspectRatio = originalWidth / originalHeight;
+      let finalWidth = originalWidth;
+      let finalHeight = originalHeight;
+      
+      if (originalWidth > originalHeight) {
+        // Landscape image
+        finalWidth = Math.min(originalWidth, maxWidth);
+        finalHeight = finalWidth / aspectRatio;
+        
+        if (finalHeight > maxHeight) {
+          finalHeight = maxHeight;
+          finalWidth = finalHeight * aspectRatio;
+        }
+      } else {
+        // Portrait or square image
+        finalHeight = Math.min(originalHeight, maxHeight);
+        finalWidth = finalHeight * aspectRatio;
+        
+        if (finalWidth > maxWidth) {
+          finalWidth = maxWidth;
+          finalHeight = finalWidth / aspectRatio;
+        }
+      }
+      
+      // Resize the image using canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to create canvas context'));
+        return;
+      }
+      
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      
+      // Use high-quality image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw the resized image
+      ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+      
+      // Convert to data URL with reduced quality if still too large
+      let quality = 0.9;
+      let finalSrc = canvas.toDataURL('image/jpeg', quality);
+      
+      // If still too large, reduce quality further
+      while (finalSrc.length > maxSizeBytes && quality > 0.1) {
+        quality -= 0.1;
+        finalSrc = canvas.toDataURL('image/jpeg', quality);
+      }
+      
+      resolve({
+        src: finalSrc,
+        width: finalWidth,
+        height: finalHeight,
+        wasResized: true
+      });
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for resizing'));
+    };
+    
+    img.src = imageSrc;
+  });
+};
+
 function createTextGroupFromLayer(layer: TextLayer): fabric.Group {
   const boundaryWidth = Math.max(MIN_BOUNDARY, layer.width || MIN_BOUNDARY);
   const boundaryHeight = Math.max(MIN_BOUNDARY, layer.height || MIN_BOUNDARY);
@@ -197,25 +293,43 @@ export const setBackgroundImage = (
   width: number,
   height: number
 ): Promise<void> => {
-  return new Promise((resolve) => {
-    fabric.Image.fromURL(imageSrc, (img: fabric.Image) => {
-      // Set new background
-      img.set({
-        left: 0,
-        top: 0,
-        width,
-        height,
-        selectable: false,
-        evented: false,
-        data: { isBackground: true },
-      });
+  return new Promise((resolve, reject) => {
+    // Validate image source
+    if (!imageSrc || typeof imageSrc !== 'string') {
+      console.error('Invalid image source:', imageSrc);
+      reject(new Error('Invalid image source'));
+      return;
+    }
 
-      canvas.setBackgroundImage(img, () => {
-        canvas.setDimensions({ width, height });
-        canvas.renderAll();
-        resolve();
-      });
-    }, { crossOrigin: 'anonymous' });
+    // Create a temporary image to test if the source is valid
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      fabric.Image.fromURL(imageSrc, (img: fabric.Image) => {
+        // Set new background
+        img.set({
+          left: 0,
+          top: 0,
+          width,
+          height,
+          selectable: false,
+          evented: false,
+          data: { isBackground: true },
+        });
+
+        canvas.setBackgroundImage(img, () => {
+          canvas.setDimensions({ width, height });
+          canvas.renderAll();
+          resolve();
+        });
+      }, { crossOrigin: 'anonymous' });
+    };
+    
+    tempImg.onerror = () => {
+      console.error('Failed to load background image from source:', imageSrc);
+      reject(new Error('Failed to load background image'));
+    };
+    
+    tempImg.src = imageSrc;
   });
 };
 
@@ -228,39 +342,48 @@ export const exportCanvas = (canvas: fabric.Canvas): string => {
 
 export const syncCanvasWithState = (
   canvas: fabric.Canvas,
-  state: CanvasState
-): void => {
-  // Clear canvas
-  canvas.clear();
+  state: CanvasState,
+  onError?: (error: string) => void
+): Promise<void> => {
+  return new Promise((resolve) => {
+    // Clear canvas
+    canvas.clear();
 
-  const addLayers = () => {
-    state.layers.forEach(layer => {
-      addTextLayer(canvas, layer);
-    });
+    const addLayers = () => {
+      state.layers.forEach(layer => {
+        addTextLayer(canvas, layer);
+      });
 
-    // Select layer if specified
-    if (state.selectedLayerId) {
-      const objects = canvas.getObjects();
-      const selectedObject = objects.find(obj => obj.data?.id === state.selectedLayerId);
-      if (selectedObject) {
-        canvas.setActiveObject(selectedObject);
+      // Select layer if specified
+      if (state.selectedLayerId) {
+        const objects = canvas.getObjects();
+        const selectedObject = objects.find(obj => obj.data?.id === state.selectedLayerId);
+        if (selectedObject) {
+          canvas.setActiveObject(selectedObject);
+        }
       }
+
+      canvas.renderAll();
+      resolve();
+    };
+
+    // Set background image, then add layers
+    if (state.backgroundImage && state.backgroundImage.src) {
+      setBackgroundImage(
+        canvas,
+        state.backgroundImage.src,
+        state.backgroundImage.width,
+        state.backgroundImage.height
+      ).then(addLayers).catch((error) => {
+        console.error('Failed to load background image from storage:', error);
+        onError?.('Failed to load background image from storage');
+        // Continue without background image if it fails to load
+        addLayers();
+      });
+    } else {
+      addLayers();
     }
-
-    canvas.renderAll();
-  };
-
-  // Set background image, then add layers
-  if (state.backgroundImage) {
-    setBackgroundImage(
-      canvas,
-      state.backgroundImage.src,
-      state.backgroundImage.width,
-      state.backgroundImage.height
-    ).then(addLayers);
-  } else {
-    addLayers();
-  }
+  });
 };
 
 export const getCanvasState = (canvas: fabric.Canvas): CanvasState => {

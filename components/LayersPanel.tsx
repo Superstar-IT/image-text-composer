@@ -108,7 +108,6 @@ export default function LayersPanel({
                     >
                       <ChevronDown size={14} />
                     </button>
-                    
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

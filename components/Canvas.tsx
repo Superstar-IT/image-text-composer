@@ -23,6 +23,7 @@ interface CanvasProps {
   state: CanvasState;
   onStateChange: (state: CanvasState) => void;
   onSelectionChange: (layerId: string | undefined) => void;
+  onBackgroundImageError?: (error: string) => void;
 }
 
 export interface CanvasRef {
@@ -67,7 +68,7 @@ const isFormElement = (target: EventTarget | null): boolean => {
 };
 
 const Canvas = forwardRef<CanvasRef, CanvasProps>(
-  ({ state, onStateChange, onSelectionChange }, ref) => {
+  ({ state, onStateChange, onSelectionChange, onBackgroundImageError }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
     const lastBgRef = useRef<string | undefined>(undefined);
@@ -235,11 +236,12 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
 
       if (bgChanged) {
         lastBgRef.current = bgSrc;
-        syncCanvasWithState(canvas, state);
-        // reflect intrinsic pixel size into CSS to avoid visual scaling
-        const el = canvas.getElement();
-        el.style.width = `${canvas.getWidth()}px`;
-        el.style.height = `${canvas.getHeight()}px`;
+        syncCanvasWithState(canvas, state, onBackgroundImageError).then(() => {
+          // reflect intrinsic pixel size into CSS to avoid visual scaling
+          const el = canvas.getElement();
+          el.style.width = `${canvas.getWidth()}px`;
+          el.style.height = `${canvas.getHeight()}px`;
+        });
         return;
       }
 
@@ -351,17 +353,28 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
     }, [handleKeyDown]);
 
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
         <div
           className={`canvas-container ${
             state.backgroundImage ? "has-image" : ""
           }`}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            overflow: 'auto',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            backgroundColor: '#f9fafb'
+          }}
         >
           <canvas
             ref={canvasRef}
             id="canvas"
             /* Avoid CSS scaling; size is controlled in code */
-            style={{ imageRendering: "pixelated" }}
+            style={{ 
+              imageRendering: "pixelated",
+              display: 'block' // Remove any default spacing
+            }}
           />
         </div>
       </div>
