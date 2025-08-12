@@ -262,6 +262,22 @@ export default function Home() {
     [currentState, selectedLayerId, handleStateChange]
   );
 
+  // Handle layer duplication
+  const handleLayerDuplicate = useCallback((layer: TextLayer) => {
+    const newLayer: TextLayer = {
+      ...layer,
+      id: `text-${Date.now()}`,
+    };
+    const newState: CanvasState = {
+      ...currentState,
+      layers: [...currentState.layers, newLayer],
+      selectedLayerId: newLayer.id,
+    };
+
+    handleStateChange(newState);
+    setSelectedLayerId(newLayer.id);
+  }, [currentState, handleStateChange])
+
   // Handle undo/redo
   const handleUndo = useCallback(() => {
     setHistory((prev) => undo(prev));
@@ -427,6 +443,7 @@ export default function Home() {
             onLayerToggleVisibility={handleLayerToggleVisibility}
             onLayerToggleLock={handleLayerToggleLock}
             onLayerDelete={handleLayerDelete}
+            onLayerDuplicate={handleLayerDuplicate}
           />
 
           {/* Center - Canvas */}

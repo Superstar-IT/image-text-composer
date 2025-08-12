@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronUp, ChevronDown, Eye, EyeOff, Lock, Unlock, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Eye, EyeOff, Lock, Unlock, Trash2, CopyPlus } from 'lucide-react';
 import { TextLayer } from '@/types';
 
 interface LayersPanelProps {
@@ -11,6 +11,7 @@ interface LayersPanelProps {
   onLayerToggleVisibility: (layerId: string) => void;
   onLayerToggleLock: (layerId: string) => void;
   onLayerDelete: (layerId: string) => void;
+  onLayerDuplicate: (layer: TextLayer) => void;
 }
 
 export default function LayersPanel({
@@ -21,6 +22,7 @@ export default function LayersPanel({
   onLayerToggleVisibility,
   onLayerToggleLock,
   onLayerDelete,
+  onLayerDuplicate
 }: LayersPanelProps) {
   return (
     <div className="panel w-80 h-full flex flex-col">
@@ -107,6 +109,16 @@ export default function LayersPanel({
                       title="Move down"
                     >
                       <ChevronDown size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onLayerDuplicate(layer);
+                      }}
+                      className="p-1 text-gray-400 hover:text-gray-600"
+                      title="Delete layer"
+                    >
+                      <CopyPlus size={14} />
                     </button>
                     <button
                       onClick={(e) => {
