@@ -126,7 +126,7 @@ export default function PropertiesPanel({
               setTextValue(e.target.value);
               debounceUpdate({ text: e.target.value });
             }}
-            className="input h-20 resize-none"
+            className="input h-20 resize-none text-gray-900"
             placeholder="Enter text..."
           />
         </div>
@@ -141,7 +141,7 @@ export default function PropertiesPanel({
             onChange={(e) =>
               onLayerUpdate({ fontFamily: e.target.value, id: layer.id })
             }
-            className="input"
+            className="input text-gray-900"
           >
             {fontFamilies
               ? fontFamilies.map((font) => (
@@ -179,7 +179,7 @@ export default function PropertiesPanel({
                   commitFontSize(fontSizeValue);
                 }
               }}
-              className="input"
+              className="input text-gray-900"
               min="1"
               max="200"
               step="1"
@@ -198,7 +198,7 @@ export default function PropertiesPanel({
                   id: layer.id,
                 })
               }
-              className="input"
+              className="input text-gray-900"
             >
               {weightOptions.map((weight) => (
                 <option key={weight} value={weight}>
